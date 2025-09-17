@@ -1,0 +1,47 @@
+<html>
+    <head>
+        <title>The Trivia Trials</title>
+        <style type="text/css">
+            /* CSS (cascading style sheets) */
+            body {
+                font-family: Sans-serif;
+                background-color: #c7dafd;
+            }
+            .primary-color {
+                color: #3336a3;
+                font-family: Impact, fantasy;
+                font-size: 30px;
+            }
+            .sub-title {
+                font-style: italic;
+                font-family: Georgia;
+                font-size: 20px;
+                font-weight: bold;
+            }
+            .body-text {
+                font-family: Sans-serif;
+            }
+            .box {
+                background-color: #3336a3;
+                width: 300px;
+                height: 600px;
+                color: #c7dafd;
+                font-size: 20px;
+                text-align: center;
+                margin: auto;
+                padding: 10px;
+            }
+        </style>
+        <h1 class="primary-color">The Trivia Trials</h1>
+    </head>
+    <body>
+        <div class="box">
+            <a>LEADERBOARD</a>
+            <br>
+            {% for player in players %}
+            <br>
+            <a>{{ player[1] }}: {{ player[2] }} points</a>
+            {% endfor %}
+        </div>
+    </body>
+</html>

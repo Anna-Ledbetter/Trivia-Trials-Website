@@ -1,0 +1,144 @@
+
+from flask import Flask, render_template, request, redirect, url_for
+import random
+import MySQLdb
+
+app = Flask(__name__)
+app.config['debug'] = True
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/room/<int:party_code>/<name>', methods=['GET'])
+def room(party_code, name):
+    db = MySQLdb.connect(host="AnnaLedbetter.mysql.pythonanywhere-services.com",
+        user="AnnaLedbetter",
+        passwd="3m5io5lC8DTrneL3",
+        db="AnnaLedbetter$contest")
+    cur = db.cursor()
+    cur.execute(f"SELECT * from parties_players WHERE code= {party_code}")
+    players = cur.fetchall();
+    return render_template('c_game_start.html', party_code=party_code, name=name, players=players)
+
+@app.route('/start/', methods=['POST', 'GET'])
+def start():
+    data = request.form #dictionary
+    party_code = str(random.randrange(1000, 9999))
+    db = MySQLdb.connect(host="AnnaLedbetter.mysql.pythonanywhere-services.com",
+        user="AnnaLedbetter",
+        passwd="3m5io5lC8DTrneL3",
+        db="AnnaLedbetter$contest")
+    db.autocommit(True)
+    cur = db.cursor()
+    cur.execute("SELECT * from questions")
+    list = cur.fetchall()
+    questions = []
+    for item in list:
+        questions.append(item[0])
+    random.shuffle(questions)
+    q1_id = questions[0]
+    q2_id = questions[1]
+    q3_id = questions[2]
+    cur.execute("INSERT INTO parties (code, q1_id, q2_id, q3_id) VALUES (%s,%s,%s,%s)", (party_code, q1_id, q2_id, q3_id))
+    #cur.execute("INSERT INTO parties (code) VALUES (%s)", (party_code,))
+    cur.execute("INSERT INTO parties_players (code, name) VALUES (%s,%s)", (party_code, data['name']))
+    return redirect(url_for('room', party_code=party_code, name=data['name']))
+
+@app.route('/join', methods=['POST'])
+def join():
+    data = request.form #dictionary
+    db = MySQLdb.connect(host="AnnaLedbetter.mysql.pythonanywhere-services.com",
+        user="AnnaLedbetter",
+        passwd="3m5io5lC8DTrneL3",
+        db="AnnaLedbetter$contest")
+    db.autocommit(True)
+    cur = db.cursor()
+    cur.execute("INSERT INTO parties_players (code, name) VALUES (%s,%s)", (data['party_code'], data['name']))
+    return redirect(url_for('room', party_code=data['party_code'], name=data['name']))
+
+@app.route('/play/<int:party_code>/<name>', methods=['POST', 'GET'])
+def play(party_code, name):
+    db = MySQLdb.connect(host="AnnaLedbetter.mysql.pythonanywhere-services.com",
+        user="AnnaLedbetter",
+        passwd="3m5io5lC8DTrneL3",
+        db="AnnaLedbetter$contest")
+    cur = db.cursor()
+    cur.execute(f"SELECT * from parties where code = {party_code}")
+    questions = cur.fetchall()
+    cur.execute(f"SELECT * from questions where id = {questions[0][1]}")
+    list1 = cur.fetchall()
+    q1 = list1[0][1]
+    a1 = [list1[0][2], list1[0][3], list1[0][4], list1[0][5]]
+    random.shuffle(a1)
+    cur.execute(f"SELECT * from questions where id = {questions[0][2]}")
+    list2 = cur.fetchall()
+    q2 = list2[0][1]
+    a2 = [list2[0][2], list2[0][3], list2[0][4], list2[0][5]]
+    random.shuffle(a2)
+    cur.execute(f"SELECT * from questions where id = {questions[0][3]}")
+    list3 = cur.fetchall()
+    q3 = list3[0][1]
+    a3 = [list3[0][2], list3[0][3], list3[0][4], list3[0][5]]
+    random.shuffle(a3)
+    return render_template('c_game_play.html', party_code=party_code, name=name, list1=list1, q1=q1, a1=a1, q2=q2, a2=a2, q3=q3, a3=a3)
+
+@app.route('/check', methods=['POST', 'GET'])
+def check():
+    data = request.form
+    db = MySQLdb.connect(host="AnnaLedbetter.mysql.pythonanywhere-services.com",
+        user="AnnaLedbetter",
+        passwd="3m5io5lC8DTrneL3",
+        db="AnnaLedbetter$contest")
+    db.autocommit(True)
+    cur = db.cursor()
+    cur.execute("SELECT * from parties_players where CODE = %s and NAME = %s", (data["party_code"], data["name"]))
+    points = cur.fetchall()[0][2]
+    cur.execute("SELECT * from parties where CODE = %s", (data["party_code"],))
+    questions = cur.fetchall()
+    cur.execute(f"SELECT * from questions where id = {questions[0][1]}")
+    list1 = cur.fetchall()
+    if data['a1'] == list1[0][2]:
+        points += 1
+    cur.execute(f"SELECT * from questions where id = {questions[0][2]}")
+    list2 = cur.fetchall()
+    if data['a2'] == list2[0][2]:
+        points += 1
+    cur.execute(f"SELECT * from questions where id = {questions[0][3]}")
+    list3 = cur.fetchall()
+    if data['a3'] == list3[0][2]:
+        points += 1
+    cur.execute(f"UPDATE parties_players SET points={points} WHERE code={data['party_code']} and name='{data['name']}'")
+    return redirect(url_for('leaderboard', party_code=data['party_code']))
+
+@app.route('/leaderboard/<int:party_code>', methods=['GET'])
+def leaderboard(party_code):
+    db = MySQLdb.connect(host="AnnaLedbetter.mysql.pythonanywhere-services.com",
+        user="AnnaLedbetter",
+        passwd="3m5io5lC8DTrneL3",
+        db="AnnaLedbetter$contest")
+    db.autocommit(True)
+    cur = db.cursor()
+    cur.execute(f"SELECT * from parties_players WHERE code= {party_code}")
+    players = cur.fetchall();
+    return render_template('c_game_leaderboard.html', players=players)
+
+@app.route('/edit/')
+def edit():
+    return render_template('c_game_edit.html')
+
+@app.route('/enter/', methods=['POST'])
+def enter():
+    data = request.form #dictionary
+    db = MySQLdb.connect(host="AnnaLedbetter.mysql.pythonanywhere-services.com",
+        user="AnnaLedbetter",
+        passwd="3m5io5lC8DTrneL3",
+        db="AnnaLedbetter$contest")
+    db.autocommit(True)
+    cur = db.cursor()
+    cur.execute("INSERT INTO questions (question, correct, wrong_1, wrong_2, wrong_3) VALUES (%s,%s,%s,%s,%s)", (data['1'], data['2'], data['3'], data['4'], data['5']))
+    return redirect(url_for('edit'))
+
+
+
+
